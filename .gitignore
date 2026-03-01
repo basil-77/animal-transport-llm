@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# virtual env
+.venv/
+venv/
+
+# VSCode
+.vscode/
+
+# HuggingFace cache
+.cache/
+*.safetensors
+
+# FAISS index (можно оставить, но лучше rebuild script)
+# rag/vector_store/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# logs
+*.log
