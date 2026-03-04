@@ -1,60 +1,90 @@
 import base64
-from openai import OpenAI
+import requests
+import json
+import re
+
+API_URL = "http://176.118.70.14:44000/v1/chat/completions"
+MODEL = "Qwen/Qwen2-VL-7B-Instruct"
 
 
-VLLM_ENDPOINT = "http://176.118.70.14:44000/v1"
-MODEL_NAME = "Qwen/Qwen2-VL-2B-Instruct"
-
-client = OpenAI(
-    base_url=VLLM_ENDPOINT,
-    api_key="EMPTY"
-)
-
-
-def encode_image(path):
+def encode_image(path: str) -> str:
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
 
 
-def analyze_image(image_path: str) -> dict:
+def extract_json(text: str):
+    """
+    Extract JSON object from model output.
+    Works even if model adds extra text.
+    """
+    match = re.search(r"\{.*\}", text, re.DOTALL)
+    if not match:
+        raise ValueError(f"No JSON found in response:\n{text}")
 
-    image_b64 = encode_image(image_path)
+    return json.loads(match.group())
 
-    prompt = """
-You are an animal transport classifier.
 
-Analyze the animal in the image and return STRICT JSON:
+def normalize_output(data: dict):
 
-{
-  "size_class": "small | medium | large",
-  "weight_class": "<5kg | 5-10kg | 10-25kg | 25kg+",
-  "brachycephalic": true | false,
-  "needs_carrier": true | false
-}
+    needs_carrier = data.get("needs_carrier", "unknown")
 
-Return ONLY valid JSON.
-"""
+    if needs_carrier == "yes":
+        needs_carrier = True
+    elif needs_carrier == "no":
+        needs_carrier = False
 
-    response = client.chat.completions.create(
-        model=MODEL_NAME,
-        temperature=0,
-        messages=[
+    return {
+        "size_class": data.get("size_class", "unknown"),
+        "weight_class": data.get("weight_class", "unknown"),
+        "brachycephalic": data.get("brachycephalic", False),
+        "needs_carrier": needs_carrier
+    }
+
+
+def analyze_image(image_path: str):
+
+    image_base64 = encode_image(image_path)
+
+    payload = {
+        "model": MODEL,
+        "messages": [
             {
                 "role": "user",
                 "content": [
                     {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/jpeg;base64,{image_b64}"
-                        }
+                        "type": "text",
+                        "text": (
+                            "Given the image of an animal, extract ONLY transport-related attributes.\n"
+                            "Return JSON strictly in this format:\n"
+                            "{"
+                            "\"size_class\": \"small|medium|large|unknown\", "
+                            "\"weight_class\": \"<1kg|1-5kg|5-8kg|8-20kg|20-50kg|>50kg|unknown\", "
+                            "\"brachycephalic\": true|false, "
+                            "\"needs_carrier\": \"yes|no|unknown\""
+                            "}\n"
+                            "Do not include species or any extra text."
+                        ),
                     },
                     {
-                        "type": "text",
-                        "text": prompt
-                    }
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{image_base64}"
+                        },
+                    },
                 ],
             }
         ],
-    )
+        "temperature": 0.0,
+        "extra_body": {
+            "lora": "transport"
+        }
+    }
 
-    return response.choices[0].message.content
+    r = requests.post(API_URL, json=payload, timeout=120)
+    r.raise_for_status()
+
+    content = r.json()["choices"][0]["message"]["content"]
+
+    parsed = extract_json(content)
+
+    return normalize_output(parsed)

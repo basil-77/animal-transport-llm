@@ -1,4 +1,4 @@
-from vlm.mock_vlm import analyze_image
+from vlm.client import analyze_image
 from vlm.geo import get_geo_info
 from vlm.transport import determine_transport
 from vlm.eta import estimate_eta
@@ -23,5 +23,7 @@ def run_pipeline(image_path, origin, destination):
 
 
 if __name__ == "__main__":
-    result = run_pipeline("dog.jpg", "Berlin", "Tokyo")
-    print(result)
+
+    phy = analyze_image("test.jpg")
+
+    print(phy)

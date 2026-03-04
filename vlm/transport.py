@@ -93,15 +93,22 @@ def determine_transport(phy: dict, geo: dict):
     # -----------------------------
     # PLANE
     # -----------------------------
-    plane_allowed = not brachy
 
-    if plane_allowed:
-        if size == "small" and needs_carrier is True:
-            plane_mode = "cabin"
-        else:
-            plane_mode = "cargo"
+    if brachy:
+        plane_allowed = True
+        plane_mode = "restricted_brachycephalic"
+
+    elif size == "small" and needs_carrier:
+        plane_allowed = True
+        plane_mode = "cabin"
+
+    elif size in ["medium", "large"]:
+        plane_allowed = True
+        plane_mode = "cargo"
+
     else:
-        plane_mode = None
+        plane_allowed = True
+        plane_mode = "cargo"
 
     # -----------------------------
     # SEA
