@@ -9,16 +9,16 @@ from vlm.eta import estimate_eta
 
 def run_pipeline(image_path, origin, destination):
 
-    # 1️⃣ VLM
+    # VLM
     phy = analyze_image(image_path)
 
-    # 2️⃣ GEO
+    # GEO
     geo = get_geo_info(origin, destination)
 
-    # 3️⃣ TRANSPORT RULES
+    # TRANSPORT RULES
     transport = determine_transport(phy, geo)
 
-    # 4️⃣ ETA
+    # ETA
     transport_options = estimate_eta(
         geo["distance_km"],
         transport
